@@ -227,40 +227,43 @@ async def analyze_endpoint(
     return result
 
 
-# ── SQLite Database Setup & CRUD ──
-import sqlite3
+# ── Postgres Database Setup & CRUD ──
+import psycopg2
+import psycopg2.extras
 from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Optional
 
-DB_PATH = "tracker.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS applications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company_name TEXT NOT NULL,
-            job_title TEXT NOT NULL,
-            jd_snippet TEXT NOT NULL,
-            match_score INTEGER NOT NULL,
-            ats_keywords TEXT NOT NULL,
-            topics_to_study TEXT NOT NULL,
-            resume_gaps TEXT NOT NULL,
-            date_analyzed TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'Saved',
-            notes TEXT,
-            user_id TEXT NOT NULL DEFAULT 'anonymous'
-        )
-    """)
-    # Migration: Add user_id column if it doesn't exist in older databases
-    cursor.execute("PRAGMA table_info(applications)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if "user_id" not in columns:
-        cursor.execute("ALTER TABLE applications ADD COLUMN user_id TEXT NOT NULL DEFAULT 'anonymous'")
-    conn.commit()
-    conn.close()
+    if not DATABASE_URL:
+        print("Warning: DATABASE_URL environment variable is not set. Database not initialized.")
+        return
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS applications (
+                id SERIAL PRIMARY KEY,
+                company_name TEXT NOT NULL,
+                job_title TEXT NOT NULL,
+                jd_snippet TEXT NOT NULL,
+                match_score INTEGER NOT NULL,
+                ats_keywords TEXT NOT NULL,
+                topics_to_study TEXT NOT NULL,
+                resume_gaps TEXT NOT NULL,
+                date_analyzed TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Saved',
+                notes TEXT,
+                user_id TEXT NOT NULL DEFAULT 'anonymous'
+            )
+        """)
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error initializing Postgres database: {e}")
 
 init_db()
 
@@ -281,9 +284,14 @@ class TrackerUpdate(BaseModel):
 VALID_STATUSES = {"Saved", "Applied", "Interviewing", "Offer", "Rejected"}
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if not DATABASE_URL:
+        raise HTTPException(status_code=500, detail="DATABASE_URL environment variable is not configured.")
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.DictCursor)
+        return conn
+    except Exception as e:
+        print(f"Database connection failed: {e}")
+        raise HTTPException(status_code=500, detail="Database connection failed.")
 
 @app.post("/tracker")
 async def create_tracker_endpoint(payload: TrackerCreate, user_id: str = Depends(get_current_user)):
@@ -291,41 +299,80 @@ async def create_tracker_endpoint(payload: TrackerCreate, user_id: str = Depends
     cursor = conn.cursor()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     
-    cursor.execute(
-        """
-        INSERT INTO applications 
-        (company_name, job_title, jd_snippet, match_score, ats_keywords, topics_to_study, resume_gaps, date_analyzed, status, notes, user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Saved', ?, ?)
-        """,
-        (
-            payload.company_name,
-            payload.job_title,
-            payload.jd_snippet,
-            payload.match_score,
-            json.dumps(payload.ats_keywords),
-            json.dumps(payload.topics_to_study),
-            json.dumps(payload.resume_gaps),
-            date_str,
-            payload.notes,
-            user_id
+    try:
+        cursor.execute(
+            """
+            INSERT INTO applications 
+            (company_name, job_title, jd_snippet, match_score, ats_keywords, topics_to_study, resume_gaps, date_analyzed, status, notes, user_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Saved', %s, %s)
+            RETURNING id
+            """,
+            (
+                payload.company_name,
+                payload.job_title,
+                payload.jd_snippet,
+                payload.match_score,
+                json.dumps(payload.ats_keywords),
+                json.dumps(payload.topics_to_study),
+                json.dumps(payload.resume_gaps),
+                date_str,
+                payload.notes,
+                user_id
+            )
         )
-    )
-    conn.commit()
-    new_id = cursor.lastrowid
-    conn.close()
-    return {"id": new_id, "status": "Saved", "date_analyzed": date_str}
+        new_id = cursor.fetchone()[0]
+        conn.commit()
+        return {"id": new_id, "status": "Saved", "date_analyzed": date_str}
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating tracker: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create tracker entry.")
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.get("/tracker")
 async def list_trackers_endpoint(user_id: str = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM applications WHERE user_id = ? ORDER BY id DESC", (user_id,))
-    rows = cursor.fetchall()
-    conn.close()
-    
-    result = []
-    for r in rows:
-        result.append({
+    try:
+        cursor.execute("SELECT * FROM applications WHERE user_id = %s ORDER BY id DESC", (user_id,))
+        rows = cursor.fetchall()
+        
+        result = []
+        for r in rows:
+            result.append({
+                "id": r["id"],
+                "company_name": r["company_name"],
+                "job_title": r["job_title"],
+                "jd_snippet": r["jd_snippet"],
+                "match_score": r["match_score"],
+                "ats_keywords": json.loads(r["ats_keywords"]),
+                "topics_to_study": json.loads(r["topics_to_study"]),
+                "resume_gaps": json.loads(r["resume_gaps"]),
+                "date_analyzed": r["date_analyzed"],
+                "status": r["status"],
+                "notes": r["notes"]
+            })
+        return result
+    except Exception as e:
+        print(f"Error listing trackers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve tracker entries.")
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/tracker/{app_id}")
+async def get_tracker_endpoint(app_id: int, user_id: str = Depends(get_current_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM applications WHERE id = %s AND user_id = %s", (app_id, user_id))
+        r = cursor.fetchone()
+        if not r:
+            raise HTTPException(status_code=404, detail="Application not found")
+            
+        return {
             "id": r["id"],
             "company_name": r["company_name"],
             "job_title": r["job_title"],
@@ -337,76 +384,74 @@ async def list_trackers_endpoint(user_id: str = Depends(get_current_user)):
             "date_analyzed": r["date_analyzed"],
             "status": r["status"],
             "notes": r["notes"]
-        })
-    return result
-
-@app.get("/tracker/{app_id}")
-async def get_tracker_endpoint(app_id: int, user_id: str = Depends(get_current_user)):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM applications WHERE id = ? AND user_id = ?", (app_id, user_id))
-    r = cursor.fetchone()
-    conn.close()
-    if not r:
-        raise HTTPException(status_code=404, detail="Application not found")
-        
-    return {
-        "id": r["id"],
-        "company_name": r["company_name"],
-        "job_title": r["job_title"],
-        "jd_snippet": r["jd_snippet"],
-        "match_score": r["match_score"],
-        "ats_keywords": json.loads(r["ats_keywords"]),
-        "topics_to_study": json.loads(r["topics_to_study"]),
-        "resume_gaps": json.loads(r["resume_gaps"]),
-        "date_analyzed": r["date_analyzed"],
-        "status": r["status"],
-        "notes": r["notes"]
-    }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting tracker: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve tracker entry.")
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.patch("/tracker/{app_id}")
 async def update_tracker_endpoint(app_id: int, payload: TrackerUpdate, user_id: str = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT * FROM applications WHERE id = ? AND user_id = ?", (app_id, user_id))
-    r = cursor.fetchone()
-    if not r:
+    try:
+        cursor.execute("SELECT * FROM applications WHERE id = %s AND user_id = %s", (app_id, user_id))
+        r = cursor.fetchone()
+        if not r:
+            raise HTTPException(status_code=404, detail="Application not found")
+            
+        updates = []
+        params = []
+        if payload.status is not None:
+            if payload.status not in VALID_STATUSES:
+                raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {VALID_STATUSES}")
+            updates.append("status = %s")
+            params.append(payload.status)
+            
+        if payload.notes is not None:
+            updates.append("notes = %s")
+            params.append(payload.notes)
+            
+        if updates:
+            params.append(app_id)
+            params.append(user_id)
+            cursor.execute(f"UPDATE applications SET {', '.join(updates)} WHERE id = %s AND user_id = %s", tuple(params))
+            conn.commit()
+            
+        return {"message": "Updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Error updating tracker: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update tracker entry.")
+    finally:
+        cursor.close()
         conn.close()
-        raise HTTPException(status_code=404, detail="Application not found")
-        
-    updates = []
-    params = []
-    if payload.status is not None:
-        if payload.status not in VALID_STATUSES:
-            conn.close()
-            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {VALID_STATUSES}")
-        updates.append("status = ?")
-        params.append(payload.status)
-        
-    if payload.notes is not None:
-        updates.append("notes = ?")
-        params.append(payload.notes)
-        
-    if updates:
-        params.append(app_id)
-        params.append(user_id)
-        cursor.execute(f"UPDATE applications SET {', '.join(updates)} WHERE id = ? AND user_id = ?", tuple(params))
-        conn.commit()
-        
-    conn.close()
-    return {"message": "Updated successfully"}
 
 @app.delete("/tracker/{app_id}")
 async def delete_tracker_endpoint(app_id: int, user_id: str = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM applications WHERE id = ? AND user_id = ?", (app_id, user_id))
-    if not cursor.fetchone():
-        conn.close()
-        raise HTTPException(status_code=404, detail="Application not found")
-        
-    cursor.execute("DELETE FROM applications WHERE id = ? AND user_id = ?", (app_id, user_id))
-    conn.commit()
-    conn.close()
-    return {"message": "Deleted successfully"}
+    try:
+        cursor.execute("SELECT * FROM applications WHERE id = %s AND user_id = %s", (app_id, user_id))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Application not found")
+            
+        cursor.execute("DELETE FROM applications WHERE id = %s AND user_id = %s", (app_id, user_id))
+        conn.commit()
+        return {"message": "Deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Error deleting tracker: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete tracker entry.")
+    finally:
+        cursor.close()
+        conn.close()
