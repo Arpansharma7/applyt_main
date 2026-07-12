@@ -5,6 +5,12 @@ from dotenv import load_dotenv
 from typing import List, Optional, Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from datetime import datetime
+from pydantic import BaseModel
+import psycopg2
+import psycopg2.extras
+import psycopg2.pool
 import os
 import json
 import io
@@ -55,7 +61,14 @@ if not initialized:
     except Exception as e:
         print(f"Warning: Firebase Admin SDK default initialization failed: {e}")
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_pool()
+    init_db()
+    yield
+    close_pool()
+
+app = FastAPI(lifespan=lifespan)
 
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
@@ -230,18 +243,63 @@ async def analyze_endpoint(
 
 
 # ── Postgres Database Setup & CRUD ──
-import psycopg2
-import psycopg2.extras
-from datetime import datetime
-from pydantic import BaseModel
-from typing import List, Optional
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Threaded connection pool initialized on startup
+db_pool = None
+
+def init_pool():
+    global db_pool
+    if not DATABASE_URL:
+        print("Warning: DATABASE_URL environment variable is not set. Connection pool not initialized.")
+        return
+    try:
+        # Use ThreadedConnectionPool since FastAPI runs synchronous route handlers in separate threads
+        db_pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=1,
+            maxconn=20,
+            dsn=DATABASE_URL,
+            cursor_factory=psycopg2.extras.DictCursor
+        )
+        print("Postgres database connection pool initialized successfully.")
+    except Exception as e:
+        print(f"Error initializing Postgres connection pool: {e}")
+
+def get_db_connection():
+    if not db_pool:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection pool is not initialized. Please configure DATABASE_URL."
+        )
+    try:
+        conn = db_pool.getconn()
+        return conn
+    except Exception as e:
+        print(f"Failed to acquire database connection from pool: {e}")
+        raise HTTPException(status_code=500, detail="Database connection acquisition failed.")
+
+def release_db_connection(conn):
+    if db_pool and conn:
+        try:
+            db_pool.putconn(conn)
+        except Exception as e:
+            print(f"Error releasing database connection back to pool: {e}")
+
+def close_pool():
+    global db_pool
+    if db_pool:
+        try:
+            db_pool.closeall()
+            print("Postgres database connection pool closed.")
+        except Exception as e:
+            print(f"Error closing Postgres connection pool: {e}")
 
 def init_db():
     if not DATABASE_URL:
         print("Warning: DATABASE_URL environment variable is not set. Database not initialized.")
         return
+    conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
         cursor = conn.cursor()
@@ -261,13 +319,18 @@ def init_db():
                 user_id TEXT NOT NULL DEFAULT 'anonymous'
             )
         """)
+        # Add index on user_id to prevent slow full-table scans
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_applications_user_id ON applications(user_id);")
         conn.commit()
         cursor.close()
-        conn.close()
+        print("Postgres database tables & indexes initialized.")
     except Exception as e:
         print(f"Error initializing Postgres database: {e}")
-
-init_db()
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
 
 class TrackerCreate(BaseModel):
     company_name: str
@@ -285,18 +348,8 @@ class TrackerUpdate(BaseModel):
 
 VALID_STATUSES = {"Saved", "Applied", "Interviewing", "Offer", "Rejected"}
 
-def get_db_connection():
-    if not DATABASE_URL:
-        raise HTTPException(status_code=500, detail="DATABASE_URL environment variable is not configured.")
-    try:
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.DictCursor)
-        return conn
-    except Exception as e:
-        print(f"Database connection failed: {e}")
-        raise HTTPException(status_code=500, detail="Database connection failed.")
-
 @app.post("/tracker")
-async def create_tracker_endpoint(payload: TrackerCreate, user_id: str = Depends(get_current_user)):
+def create_tracker_endpoint(payload: TrackerCreate, user_id: str = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
@@ -331,10 +384,10 @@ async def create_tracker_endpoint(payload: TrackerCreate, user_id: str = Depends
         raise HTTPException(status_code=500, detail="Failed to create tracker entry.")
     finally:
         cursor.close()
-        conn.close()
+        release_db_connection(conn)
 
 @app.get("/tracker")
-async def list_trackers_endpoint(user_id: str = Depends(get_current_user)):
+def list_trackers_endpoint(user_id: str = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -362,10 +415,10 @@ async def list_trackers_endpoint(user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Failed to retrieve tracker entries.")
     finally:
         cursor.close()
-        conn.close()
+        release_db_connection(conn)
 
 @app.get("/tracker/{app_id}")
-async def get_tracker_endpoint(app_id: int, user_id: str = Depends(get_current_user)):
+def get_tracker_endpoint(app_id: int, user_id: str = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -394,10 +447,10 @@ async def get_tracker_endpoint(app_id: int, user_id: str = Depends(get_current_u
         raise HTTPException(status_code=500, detail="Failed to retrieve tracker entry.")
     finally:
         cursor.close()
-        conn.close()
+        release_db_connection(conn)
 
 @app.patch("/tracker/{app_id}")
-async def update_tracker_endpoint(app_id: int, payload: TrackerUpdate, user_id: str = Depends(get_current_user)):
+def update_tracker_endpoint(app_id: int, payload: TrackerUpdate, user_id: str = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -434,10 +487,10 @@ async def update_tracker_endpoint(app_id: int, payload: TrackerUpdate, user_id: 
         raise HTTPException(status_code=500, detail="Failed to update tracker entry.")
     finally:
         cursor.close()
-        conn.close()
+        release_db_connection(conn)
 
 @app.delete("/tracker/{app_id}")
-async def delete_tracker_endpoint(app_id: int, user_id: str = Depends(get_current_user)):
+def delete_tracker_endpoint(app_id: int, user_id: str = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -456,4 +509,4 @@ async def delete_tracker_endpoint(app_id: int, user_id: str = Depends(get_curren
         raise HTTPException(status_code=500, detail="Failed to delete tracker entry.")
     finally:
         cursor.close()
-        conn.close()
+        release_db_connection(conn)

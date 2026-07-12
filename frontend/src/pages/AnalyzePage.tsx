@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, Loader2, AlertCircle, ArrowRight, CheckCircle2, XCircle, ChevronDown, ChevronUp, BookOpen, AlertTriangle, ShieldCheck, Cpu, Terminal } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { invalidateTrackerCache } from '../utils/trackerCache';
 
 interface ResumeGap { gap: string; suggestion: string; }
 
@@ -199,6 +200,7 @@ export const AnalyzePage = () => {
         throw new Error(`Failed to save application tracker: ${res.status}`);
       }
 
+      invalidateTrackerCache();
       setTrackerSaved(true);
       setShowSaveForm(false);
     } catch (err) {

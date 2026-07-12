@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, Loader2, Calendar, FileText, Trash2, ArrowRight, CheckCircle2, AlertTriangle, BookOpen, Edit } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getCachedTrackers, setCachedTrackers, invalidateTrackerCache } from '../utils/trackerCache';
 
-interface ResumeGap { gap: string; suggestion: string; }
+export interface ResumeGap { gap: string; suggestion: string; }
 
-interface TrackedApplication {
+export interface TrackedApplication {
   id: number;
   company_name: string;
   job_title: string;
@@ -36,8 +37,19 @@ export const TrackerPage = () => {
   const [noteDraft, setNoteDraft] = useState('');
 
   // Fetch applications on load
-  const fetchApps = useCallback(async () => {
-    if (!token) return;
+  const fetchApps = useCallback(async (force = false) => {
+    if (!token || !user) return;
+
+    if (!force) {
+      const cached = getCachedTrackers(user.uid);
+      if (cached) {
+        setApps(cached);
+        setLoading(false);
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/tracker`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -47,21 +59,22 @@ export const TrackerPage = () => {
       }
       const data = await res.json();
       setApps(data);
+      setCachedTrackers(user.uid, data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, user]);
 
   useEffect(() => {
-    if (token) {
-      fetchApps();
+    if (token && user) {
+      fetchApps(false);
     } else {
       setApps([]);
       if (!authLoading) setLoading(false);
     }
-  }, [token, authLoading, fetchApps]);
+  }, [token, user, authLoading, fetchApps]);
 
   // Update intersection reveals whenever lists update
   useEffect(() => {
@@ -77,10 +90,12 @@ export const TrackerPage = () => {
 
   // Handle inline status update
   const handleStatusChange = async (appId: number, nextStatus: string) => {
-    // Update local state immediately for instant feedback
-    setApps((prev) =>
-      prev.map((a) => (a.id === appId ? { ...a, status: nextStatus } : a))
-    );
+    // Update local state and cache immediately for instant feedback
+    setApps((prev) => {
+      const updated = prev.map((a) => (a.id === appId ? { ...a, status: nextStatus } : a));
+      if (user) setCachedTrackers(user.uid, updated);
+      return updated;
+    });
 
     try {
       const res = await fetch(`${API_BASE}/tracker/${appId}`, {
@@ -95,17 +110,20 @@ export const TrackerPage = () => {
         throw new Error('Failed to update status on server');
       }
     } catch {
-      // Revert state if server update fails
-      fetchApps();
+      // Revert state and cache if server update fails
+      invalidateTrackerCache();
+      fetchApps(true);
       alert('Failed to update status. Please try again.');
     }
   };
 
   // Handle inline note save
   const handleSaveNote = async (appId: number) => {
-    setApps((prev) =>
-      prev.map((a) => (a.id === appId ? { ...a, notes: noteDraft || null } : a))
-    );
+    setApps((prev) => {
+      const updated = prev.map((a) => (a.id === appId ? { ...a, notes: noteDraft || null } : a));
+      if (user) setCachedTrackers(user.uid, updated);
+      return updated;
+    });
     setEditingNoteId(null);
 
     try {
@@ -121,7 +139,8 @@ export const TrackerPage = () => {
         throw new Error('Failed to save notes');
       }
     } catch {
-      fetchApps();
+      invalidateTrackerCache();
+      fetchApps(true);
       alert('Failed to save notes. Please try again.');
     }
   };
@@ -131,7 +150,11 @@ export const TrackerPage = () => {
     if (!confirm('Are you sure you want to remove this application from tracker?')) return;
     
     // Optimistic deletion
-    setApps((prev) => prev.filter((a) => a.id !== appId));
+    setApps((prev) => {
+      const updated = prev.filter((a) => a.id !== appId);
+      if (user) setCachedTrackers(user.uid, updated);
+      return updated;
+    });
     if (selectedAppId === appId) {
       setSelectedAppId(null);
     }
@@ -147,7 +170,8 @@ export const TrackerPage = () => {
         throw new Error('Failed to delete application record');
       }
     } catch {
-      fetchApps();
+      invalidateTrackerCache();
+      fetchApps(true);
       alert('Failed to delete application. Please try again.');
     }
   };
