@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, Loader2, Calendar, FileText, Trash2, ArrowRight, CheckCircle2, AlertTriangle, BookOpen, Edit } from 'lucide-react';
+import { AlertCircle, Loader2, Calendar, FileText, Trash2, ArrowRight, CheckCircle2, AlertTriangle, BookOpen, Edit, X, TriangleAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getCachedTrackers, setCachedTrackers, invalidateTrackerCache } from '../utils/trackerCache';
 
@@ -23,6 +23,94 @@ export interface TrackedApplication {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 const STATUSES = ['Saved', 'Applied', 'Interviewing', 'Offer', 'Rejected'];
 
+// ─── Toast ───────────────────────────────────────────────────────────────────
+interface Toast { id: number; message: string; type: 'error' | 'success'; }
+
+const ToastContainer = ({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: number) => void }) => (
+  <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-2 pointer-events-none">
+    {toasts.map((t) => (
+      <div
+        key={t.id}
+        className={`pointer-events-auto flex items-start gap-3 px-5 py-4 border shadow-lg max-w-xs animate-in slide-in-from-bottom-2 fade-in duration-300 ${
+          t.type === 'error'
+            ? 'bg-cream border-red/40 text-red'
+            : 'bg-cream border-[#0D6640]/30 text-[#0D6640]'
+        }`}
+      >
+        {t.type === 'error'
+          ? <TriangleAlert className="w-4 h-4 mt-0.5 shrink-0" />
+          : <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />}
+        <p className="text-[12px] font-semibold leading-relaxed flex-1">{t.message}</p>
+        <button
+          onClick={() => dismiss(t.id)}
+          className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+// ─── Confirm Modal ────────────────────────────────────────────────────────────
+interface ConfirmModalProps {
+  open: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const ConfirmModal = ({ open, title, message, onConfirm, onCancel }: ConfirmModalProps) => {
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Enter') onConfirm();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [open, onCancel, onConfirm]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-[150] flex items-center justify-center bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={(e) => e.target === overlayRef.current && onCancel()}
+    >
+      <div className="bg-cream border border-ink-20 p-8 max-w-sm w-full mx-4 animate-in zoom-in-95 slide-in-from-bottom-2 duration-200 shadow-xl">
+        <div className="flex items-start gap-4 mb-6">
+          <div className="w-10 h-10 border border-red/30 bg-red/5 flex items-center justify-center shrink-0">
+            <Trash2 className="w-4 h-4 text-red" />
+          </div>
+          <div>
+            <h4 className="font-display font-black text-base uppercase tracking-tight text-ink mb-1">{title}</h4>
+            <p className="text-[13px] text-ink-60 leading-relaxed">{message}</p>
+          </div>
+        </div>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-5 py-2.5 border border-ink-20 text-[11px] font-bold uppercase tracking-wider text-ink-60 hover:border-ink hover:text-ink transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-5 py-2.5 bg-red text-cream text-[11px] font-bold uppercase tracking-wider hover:bg-ink transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const TrackerPage = () => {
   const { user, token, signInWithGoogle, loading: authLoading } = useAuth();
   const [apps, setApps] = useState<TrackedApplication[]>([]);
@@ -35,6 +123,24 @@ export const TrackerPage = () => {
   // Note inline editing states
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastCounter = useRef(0);
+  const addToast = useCallback((message: string, type: 'error' | 'success' = 'error') => {
+    const id = ++toastCounter.current;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Confirm modal state
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; appId: number | null }>({
+    open: false,
+    appId: null,
+  });
 
   // Fetch applications on load
   const fetchApps = useCallback(async (force = false) => {
@@ -113,7 +219,7 @@ export const TrackerPage = () => {
       // Revert state and cache if server update fails
       invalidateTrackerCache();
       fetchApps(true);
-      alert('Failed to update status. Please try again.');
+      addToast('Failed to update status. Please try again.');
     }
   };
 
@@ -141,14 +247,20 @@ export const TrackerPage = () => {
     } catch {
       invalidateTrackerCache();
       fetchApps(true);
-      alert('Failed to save notes. Please try again.');
+      addToast('Failed to save notes. Please try again.');
     }
   };
 
-  // Handle application delete
-  const handleDelete = async (appId: number) => {
-    if (!confirm('Are you sure you want to remove this application from tracker?')) return;
-    
+  // Handle application delete — opens confirm modal
+  const handleDelete = (appId: number) => {
+    setConfirmModal({ open: true, appId });
+  };
+
+  const confirmDelete = async () => {
+    const appId = confirmModal.appId;
+    setConfirmModal({ open: false, appId: null });
+    if (appId === null) return;
+
     // Optimistic deletion
     setApps((prev) => {
       const updated = prev.filter((a) => a.id !== appId);
@@ -172,7 +284,7 @@ export const TrackerPage = () => {
     } catch {
       invalidateTrackerCache();
       fetchApps(true);
-      alert('Failed to delete application. Please try again.');
+      addToast('Failed to delete application. Please try again.');
     }
   };
 
@@ -228,6 +340,15 @@ export const TrackerPage = () => {
   }
 
   return (
+    <>
+    <ToastContainer toasts={toasts} dismiss={dismissToast} />
+    <ConfirmModal
+      open={confirmModal.open}
+      title="Delete Record"
+      message="Are you sure you want to remove this application from the tracker? This action cannot be undone."
+      onConfirm={confirmDelete}
+      onCancel={() => setConfirmModal({ open: false, appId: null })}
+    />
     <main className="min-h-screen bg-cream text-ink pt-28 pb-32">
       <div className="max-w-6xl mx-auto px-[5vw]">
 
@@ -514,5 +635,6 @@ export const TrackerPage = () => {
 
       </div>
     </main>
+    </>
   );
 };
