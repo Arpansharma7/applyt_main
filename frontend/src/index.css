@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Barlow+Condensed:wght@700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* ── Brand palette ── */
+  --color-cream:   #F2F0EB;          /* page bg */
+  --color-ink:     #0D0D0D;          /* primary text / buttons */
+  --color-ink-60:  #6B6B6B;          /* muted text */
+  --color-ink-20:  #D6D4CF;          /* borders */
+  --color-red:     #C8102E;          /* accent — used sparingly */
+  --color-red-10:  rgba(200,16,46,.08); /* accent tint for tags */
+
+  /* keep legacy tokens so AnalyzePage / FeaturesPage don't break */
+  --color-background:              #F2F0EB;
+  --color-surface:                 #F2F0EB;
+  --color-surface-container-low:   #ECEAE5;
+  --color-surface-container:       #E4E2DD;
+  --color-surface-container-high:  #DAD8D3;
+  --color-surface-container-highest: #D0CEC9;
+  --color-surface-container-lowest: #F8F7F4;
+  --color-on-background:           #0D0D0D;
+  --color-on-surface:              #0D0D0D;
+  --color-on-surface-variant:      #6B6B6B;
+  --color-on-primary:              #F2F0EB;
+  --color-on-secondary:            #F2F0EB;
+  --color-on-tertiary:             #F2F0EB;
+  --color-on-tertiary-container:   #0D6640;
+  --color-primary:                 #0D0D0D;
+  --color-primary-container:       #1a1a1a;
+  --color-secondary:               #C8102E;
+  --color-secondary-container:     #C8102E;
+  --color-tertiary:                #0D0D0D;
+  --color-outline:                 #9B9994;
+  --color-outline-variant:         #D6D4CF;
+  --color-error:                   #C8102E;
+  --color-error-container:         rgba(200,16,46,.08);
+  --color-inverse-surface:         #1A1A1A;
+  --color-inverse-on-surface:      #F2F0EB;
+  --color-surface-dim:             #C8C6C1;
+  --color-surface-bright:          #F8F7F4;
+  --color-surface-tint:            #C8102E;
+  --color-surface-variant:         #E4E2DD;
+  --color-tertiary-container:      #1a1a1a;
+  --color-tertiary-fixed:          #D0CEC9;
+  --color-tertiary-fixed-dim:      #C0BEB9;
+  --color-on-tertiary-fixed:       #0D0D0D;
+  --color-on-tertiary-fixed-variant: #3B3B3B;
+  --color-secondary-fixed:         rgba(200,16,46,.15);
+  --color-secondary-fixed-dim:     rgba(200,16,46,.25);
+  --color-on-secondary-fixed:      #C8102E;
+  --color-on-secondary-fixed-variant: #900b20;
+  --color-on-secondary-container:  #F2F0EB;
+  --color-primary-fixed:           #1a1a1a;
+  --color-primary-fixed-dim:       #2a2a2a;
+  --color-on-primary-fixed:        #F2F0EB;
+  --color-on-primary-fixed-variant: #D0CEC9;
+  --color-on-primary-container:    #9B9994;
+  --color-inverse-primary:         #D6D4CF;
+
+  /* spacing */
+  --spacing-container-margin: 5vw;
+  --spacing-section-gap: 120px;
+  --spacing-gutter: 24px;
+
+  /* type scale */
+  --font-display:      'Barlow Condensed', sans-serif;
+  --font-headline-lg:  'Barlow Condensed', sans-serif;
+  --font-headline-md:  'Barlow Condensed', sans-serif;
+  --font-body-lg:      'Inter', sans-serif;
+  --font-body-md:      'Inter', sans-serif;
+  --font-label-md:     'Inter', sans-serif;
+  --font-label-sm:     'Inter', sans-serif;
+
+  --font-size-display:      clamp(4rem, 12vw, 10rem);
+  --font-size-headline-lg:  clamp(2rem, 5vw, 3.5rem);
+  --font-size-headline-md:  clamp(1.5rem, 3vw, 2rem);
+  --font-size-body-lg:      1.125rem;
+  --font-size-body-md:      1rem;
+  --font-size-label-md:     0.875rem;
+  --font-size-label-sm:     0.75rem;
+}
+
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #F2F0EB;
+  color: #0D0D0D;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scroll-reveal ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition: opacity 0.7s cubic-bezier(.22,1,.36,1),
+              transform 0.7s cubic-bezier(.22,1,.36,1);
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.32s; }
+.reveal-delay-4 { transition-delay: 0.44s; }
+
+/* ── Red pill/tag ── */
+.accent-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid rgba(200,16,46,.3);
+  background: rgba(200,16,46,.06);
+  color: #C8102E;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 4px;
+}
+
+/* ── Glass card — now cream-tinted ── */
+.glass-card {
+  background: rgba(242,240,235,0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(13,13,13,0.07);
+  box-shadow: 0 2px 20px rgba(13,13,13,0.04);
+}
+
+/* ── Grayscale image treatment ── */
+.grayscale-img {
+  filter: grayscale(100%) contrast(1.05);
+  transition: filter 0.5s ease;
+}
+.grayscale-img:hover {
+  filter: grayscale(60%) contrast(1.05);
+}
+
+/* ── Editorial divider ── */
+.editorial-divider {
+  border: none;
+  border-top: 1px solid rgba(13,13,13,0.12);
+}
+
+/* ── Stat number ── */
+.stat-number {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900;
+  color: #C8102E;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* ── Hero wordmark ── */
+.hero-wordmark {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900;
+  font-size: clamp(5rem, 18vw, 14rem);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  color: #C8102E;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* ── Misc legacy helpers used by pages ── */
+.grainy-bg { background-color: #F2F0EB; }
