@@ -60,6 +60,7 @@ app = FastAPI()
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:4173",  # vite preview
+    "https://useapplyt.vercel.app",
 ]
 if extra := os.getenv("ALLOWED_ORIGIN"):
     ALLOWED_ORIGINS.append(extra)
@@ -67,6 +68,7 @@ if extra := os.getenv("ALLOWED_ORIGIN"):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
