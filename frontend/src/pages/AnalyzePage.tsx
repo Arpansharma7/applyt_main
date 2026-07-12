@@ -260,9 +260,34 @@ export const AnalyzePage = () => {
       setKeywordContext(`Required technical competency: ${kw}.`);
       return;
     }
-    const sentences = jdText.split(/(?<=[.!?])\s+/);
-    const match = sentences.find(s => s.toLowerCase().includes(kw.toLowerCase()));
-    setKeywordContext(match ? `"${match.trim()}"` : `Found as a key requirement for this role.`);
+
+    const kwLower = kw.toLowerCase();
+    const textLower = jdText.toLowerCase();
+
+    // 1. Try exact phrase match
+    let matchIdx = textLower.indexOf(kwLower);
+
+    // 2. Fall back: match longest individual word of compound keyword (skip short words)
+    if (matchIdx === -1) {
+      const words = kwLower.split(/\s+/).filter(w => w.length > 3);
+      for (const word of words) {
+        const idx = textLower.indexOf(word);
+        if (idx !== -1) { matchIdx = idx; break; }
+      }
+    }
+
+    if (matchIdx !== -1) {
+      // Extract a ~150-char context window around the match
+      const WINDOW = 150;
+      const start = Math.max(0, matchIdx - WINDOW);
+      const end = Math.min(jdText.length, matchIdx + kw.length + WINDOW);
+      let snippet = jdText.slice(start, end).trim();
+      if (start > 0) snippet = '…' + snippet;
+      if (end < jdText.length) snippet = snippet + '…';
+      setKeywordContext(snippet);
+    } else {
+      setKeywordContext(`Identified by AI as a key competency for this role, but not mentioned explicitly in the provided job description text.`);
+    }
   };
 
   return (
