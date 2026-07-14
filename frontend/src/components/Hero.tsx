@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import bgArchitecture from '../assets/bg_architecture.jpg';
 
 /* ── Scroll-reveal hook ── */
 function useReveal() {
@@ -29,15 +28,6 @@ export const Hero = () => {
     <div className="bg-cream">
       {/* ── Editorial Hero Section ── */}
       <section className="relative min-h-[95vh] flex flex-col justify-between pt-24 pb-16 overflow-hidden">
-        
-        {/* Background Image with blur */}
-        <div className="absolute inset-0 pointer-events-none opacity-20 select-none">
-          <img 
-            src={bgArchitecture} 
-            alt="" 
-            className="w-full h-full object-cover filter blur-[10px] scale-105" 
-          />
-        </div>
 
         {/* Giant background text (Solid Red) behind the elements */}
         <div className="absolute top-8 left-0 right-0 z-0 flex justify-center select-none pointer-events-none overflow-hidden">
@@ -77,8 +67,51 @@ export const Hero = () => {
             </div>
           </div>
 
-          {/* Center Column: Grayscale image with a deliberate circular crop overlap */}
-          <div className="col-span-12 md:col-span-4 flex justify-center items-center relative self-center">
+          {/* Center Column: Grayscale image with a deliberate circular crop overlap and AI Scan HUD */}
+          <div className="col-span-12 md:col-span-4 flex justify-center items-center relative self-center py-6">
+            
+            {/* Outer Circular Scanning HUD Ring */}
+            <div 
+              className="absolute rounded-full border border-dashed border-red/40 animate-[spin_50s_linear_infinite] select-none pointer-events-none"
+              style={{
+                width: 'calc(clamp(280px, 24vw, 360px) + 24px)',
+                height: 'calc(clamp(280px, 24vw, 360px) + 24px)',
+              }}
+            />
+
+            {/* Inner Circular Radar-like Ring */}
+            <div 
+              className="absolute rounded-full border border-ink/5 animate-hud-pulse select-none pointer-events-none"
+              style={{
+                width: 'calc(clamp(280px, 24vw, 360px) + 48px)',
+                height: 'calc(clamp(280px, 24vw, 360px) + 48px)',
+              }}
+            />
+
+            {/* Square Bounding Box HUD Wrapper */}
+            <div 
+              className="absolute select-none pointer-events-none"
+              style={{
+                width: 'calc(clamp(280px, 24vw, 360px) + 32px)',
+                height: 'calc(clamp(280px, 24vw, 360px) + 32px)',
+              }}
+            >
+              {/* Corner L-Brackets */}
+              <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-red/50" />
+              <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-red/50" />
+              <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-red/50" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-red/50" />
+
+              {/* Minimal Tech Labels */}
+              <div className="absolute -top-7 left-0 font-mono text-[9px] font-bold text-red/60 uppercase tracking-widest">
+                SYS_INIT: ACTIVE
+              </div>
+              <div className="absolute -bottom-7 right-0 font-mono text-[9px] font-bold text-red/60 uppercase tracking-widest">
+                MATCH: 92%
+              </div>
+            </div>
+
+            {/* Image container */}
             <div 
               className="relative rounded-full overflow-hidden border-4 border-red shadow-2xl z-10 shrink-0 aspect-square"
               style={{
@@ -92,6 +125,10 @@ export const Hero = () => {
                 className="grayscale-img w-full h-full object-cover"
                 loading="eager"
               />
+              
+              {/* Scanline overlay inside the circle */}
+              <div className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red to-transparent opacity-80 animate-hud-scan z-20 pointer-events-none" />
+              
               <div className="absolute inset-0 bg-red/0 hover:bg-red/5 transition-all duration-500 pointer-events-none" />
             </div>
           </div>

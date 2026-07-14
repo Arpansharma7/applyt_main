@@ -171,3 +171,24 @@ body {
 
 /* ── Misc legacy helpers used by pages ── */
 .grainy-bg { background-color: #F2F0EB; }
+
+/* ── AI Scan HUD animations ── */
+@keyframes hud-scan {
+  0% { top: -5%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 105%; opacity: 0; }
+}
+
+@keyframes hud-pulse-slow {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.6; }
+}
+
+.animate-hud-scan {
+  animation: hud-scan 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-hud-pulse {
+  animation: hud-pulse-slow 3s ease-in-out infinite;
+}
