@@ -29,11 +29,16 @@ export const Hero = () => {
       {/* ── Editorial Hero Section ── */}
       <section className="relative min-h-[95vh] flex flex-col justify-between pt-24 pb-16 overflow-hidden">
 
-        {/* Giant background text (Solid Red) behind the elements */}
+        {/* Giant background text (Sleek Outline) behind the elements */}
         <div className="absolute top-8 left-0 right-0 z-0 flex justify-center select-none pointer-events-none overflow-hidden">
           <h1 
-            className="font-display font-black text-red tracking-tighter text-center leading-none uppercase" 
-            style={{ fontSize: 'clamp(6rem, 22vw, 18rem)', letterSpacing: '-0.04em' }}
+            className="font-black text-transparent tracking-widest text-center leading-none uppercase animate-hud-pulse" 
+            style={{ 
+              fontFamily: "'Syncopate', sans-serif", 
+              fontSize: 'clamp(4rem, 15vw, 12rem)', 
+              WebkitTextStroke: '2px #C8102E',
+              letterSpacing: '0.05em'
+            }}
           >
             APPLYT
           </h1>
@@ -103,7 +108,7 @@ export const Hero = () => {
               <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-red/50" />
 
               {/* Minimal Tech Labels */}
-              <div className="absolute -top-7 left-0 font-mono text-[9px] font-bold text-red/60 uppercase tracking-widest">
+              <div className="absolute -bottom-7 left-0 font-mono text-[9px] font-bold text-red/60 uppercase tracking-widest">
                 SYS_INIT: ACTIVE
               </div>
               <div className="absolute -bottom-7 right-0 font-mono text-[9px] font-bold text-red/60 uppercase tracking-widest">
