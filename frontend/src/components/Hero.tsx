@@ -31,11 +31,11 @@ export const Hero = () => {
       <section className="relative min-h-[95vh] flex flex-col justify-between pt-24 pb-16 overflow-hidden">
         
         {/* Background Image with blur */}
-        <div className="absolute inset-0 pointer-events-none opacity-10 select-none">
+        <div className="absolute inset-0 pointer-events-none opacity-20 select-none">
           <img 
             src={bgArchitecture} 
             alt="" 
-            className="w-full h-full object-cover filter blur-[40px] scale-105" 
+            className="w-full h-full object-cover filter blur-[10px] scale-105" 
           />
         </div>
 
