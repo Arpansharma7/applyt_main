@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import resumePreview from '../assets/resume_preview.jpg';
+import dashboardMockup from '../assets/dashboard_mockup.jpg';
 
 /* ── Scroll-reveal hook ── */
 function useReveal() {
@@ -71,7 +73,7 @@ export const FeaturesPage = () => {
                 <img
                   alt="Resume Document Analysis"
                   className="grayscale-img w-full h-full object-cover object-top"
-                  src="https://lh3.googleusercontent.com/aida/AP1WRLv6BvW_73o3kBJ03J1YBxbnU6U84TPneMWrWKwu3arWPCkSDBi_L8ndkpsWODRdz58HNT-iG9HryJ_jMVtrpqpDX8l_7ALWta5l-AyP6jQbpw8JuOA4DgDXNmOc8f0Gm4-pTDz3qqbMZ265XcM6CNZYmiaus0ZuxMGcjPp6UWPP9R6HfT7keTVTt8ZRjP_ArIoMrbluP9aUCgq0sslOnX8VKopG6_6SZDElMbKzhLIIMUH3yii2oVDDU0Nq"
+                  src={resumePreview}
                   loading="lazy"
                   width={400}
                   height={260}
@@ -213,7 +215,7 @@ export const FeaturesPage = () => {
                 <img
                   alt="Integrated Intelligence Dashboard"
                   className="grayscale-img absolute inset-0 w-full h-full object-cover object-center"
-                  src="https://lh3.googleusercontent.com/aida/AP1WRLtwNj9D-IQyjarlcestbXRgK8JnjeA2a9h8d5Es-BjEpuSmKxd54k1DjPE5SiiinquqzJ5BWAyBXYBz1Zvcazc_1nkYjgnDXg0J-w5OEinAOT-RksxYG2ecfflbGFm5yPRfpXFhD165lhP-7-mXB4A2p4Hw4VHr8jwVZGcvQxBAMK84L42px40FdvQBvLqpvTj3re5S3FOUW6Bv4VIra1m-VLDNBAbaMsxexdYzZQKHmI1A6Pg1y-K_b6pV"
+                  src={dashboardMockup}
                   loading="lazy"
                   width={600}
                   height={400}

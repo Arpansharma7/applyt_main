@@ -1,5 +1,7 @@
 import { Key } from 'lucide-react';
 import { FloatingCard } from './FloatingCard';
+import dashboardMockup from '../assets/dashboard_mockup.jpg';
+import resumePreview from '../assets/resume_preview.jpg';
 
 export const HeroVisual = () => {
   return (
@@ -17,7 +19,7 @@ export const HeroVisual = () => {
           <img 
             alt="AI Resume Analysis Dashboard" 
             className="w-full h-full object-cover" 
-            src="https://lh3.googleusercontent.com/aida/AP1WRLtwNj9D-IQyjarlcestbXRgK8JnjeA2a9h8d5Es-BjEpuSmKxd54k1DjPE5SiiinquqzJ5BWAyBXYBz1Zvcazc_1nkYjgnDXg0J-w5OEinAOT-RksxYG2ecfflbGFm5yPRfpXFhD165lhP-7-mXB4A2p4Hw4VHr8jwVZGcvQxBAMK84L42px40FdvQBvLqpvTj3re5S3FOUW6Bv4VIra1m-VLDNBAbaMsxexdYzZQKHmI1A6Pg1y-K_b6pV"
+            src={dashboardMockup}
             width={672}
             height={420}
           />
@@ -36,7 +38,7 @@ export const HeroVisual = () => {
             <img 
               alt="Professional Resume Preview" 
               className="w-full h-full object-cover object-top" 
-              src="https://lh3.googleusercontent.com/aida/AP1WRLv6BvW_73o3kBJ03J1YBxbnU6U84TPneMWrWKwu3arWPCkSDBi_L8ndkpsWODRdz58HNT-iG9HryJ_jMVtrpqpDX8l_7ALWta5l-AyP6jQbpw8JuOA4DgDXNmOc8f0Gm4-pTDz3qqbMZ265XcM6CNZYmiaus0ZuxMGcjPp6UWPP9R6HfT7keTVTt8ZRjP_ArIoMrbluP9aUCgq0sslOnX8VKopG6_6SZDElMbKzhLIIMUH3yii2oVDDU0Nq"
+              src={resumePreview}
               loading="lazy"
               width={320}
               height={426}

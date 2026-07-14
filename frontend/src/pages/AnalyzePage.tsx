@@ -264,14 +264,26 @@ export const AnalyzePage = () => {
     const kwLower = kw.toLowerCase();
     const textLower = jdText.toLowerCase();
 
-    // 1. Try exact phrase match
-    let matchIdx = textLower.indexOf(kwLower);
+    // Helper: find index using word-boundary regex to avoid false partial matches
+    const findWithBoundary = (haystack: string, needle: string): number => {
+      try {
+        const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = haystack.match(new RegExp(`\\b${escaped}\\b`));
+        if (match?.index !== undefined) return match.index;
+      } catch { /* ignore regex errors */ }
+      return -1;
+    };
 
-    // 2. Fall back: match longest individual word of compound keyword (skip short words)
+    // 1. Try exact phrase match (word-boundary aware)
+    let matchIdx = findWithBoundary(textLower, kwLower);
+
+    // 2. Fall back: try each word of the keyword, longest-first (skip words ≤5 chars)
     if (matchIdx === -1) {
-      const words = kwLower.split(/\s+/).filter(w => w.length > 3);
+      const words = kwLower.split(/\s+/)
+        .filter(w => w.length > 5)
+        .sort((a, b) => b.length - a.length);
       for (const word of words) {
-        const idx = textLower.indexOf(word);
+        const idx = findWithBoundary(textLower, word);
         if (idx !== -1) { matchIdx = idx; break; }
       }
     }
