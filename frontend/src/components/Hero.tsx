@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import bgArchitecture from '../assets/bg_architecture.jpg';
 
 /* ── Scroll-reveal hook ── */
 function useReveal() {
@@ -29,6 +30,15 @@ export const Hero = () => {
       {/* ── Editorial Hero Section ── */}
       <section className="relative min-h-[95vh] flex flex-col justify-between pt-24 pb-16 overflow-hidden">
         
+        {/* Background Image with blur */}
+        <div className="absolute inset-0 pointer-events-none opacity-10 select-none">
+          <img 
+            src={bgArchitecture} 
+            alt="" 
+            className="w-full h-full object-cover filter blur-[40px] scale-105" 
+          />
+        </div>
+
         {/* Giant background text (Solid Red) behind the elements */}
         <div className="absolute top-8 left-0 right-0 z-0 flex justify-center select-none pointer-events-none overflow-hidden">
           <h1 
