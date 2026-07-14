@@ -30,7 +30,7 @@ export const Hero = () => {
       <section className="relative min-h-[95vh] flex flex-col justify-between pt-24 pb-16 overflow-hidden">
 
         {/* Giant background text (Sleek Outline) behind the elements */}
-        <div className="absolute top-8 left-0 right-0 z-0 flex justify-center select-none pointer-events-none overflow-hidden">
+        <div className="absolute top-24 left-0 right-0 z-0 flex justify-center select-none pointer-events-none">
           <h1 
             className="font-black text-transparent tracking-widest text-center leading-none uppercase animate-hud-pulse" 
             style={{ 
