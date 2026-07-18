@@ -20,11 +20,7 @@ Applyt is a job-application portfolio product designed to help candidates analyz
    ```bash
    pip install -r requirements.txt
    ```
-3. Copy `.env.example` to `.env` and fill in the required environment variables:
-   - `google_api`: Your Google Gemini API key.
-   - `FIREBASE_SERVICE_ACCOUNT_JSON`: The raw JSON credentials dictionary (or base64 encoded JSON) of your Firebase Service Account.
-   - `FIREBASE_PROJECT_ID`: Your Firebase Project ID.
-4. Run the FastAPI development server:
+3. Run the FastAPI development server:
    ```bash
    uvicorn prod:app --reload
    ```
